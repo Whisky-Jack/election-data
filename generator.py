@@ -22,6 +22,7 @@ html = section.html()
 
 soup = BeautifulSoup(html, 'html.parser')
 
+"""
 headers = soup.find_all(re.compile('^h[1-6]$'))#, "span"])
 headers.pop(0)   #TODO: This is a hacky fix, should instead filter based on class or something
 
@@ -31,19 +32,28 @@ def getProvinceName(header):
 provinces = [getProvinceName(header) for header in headers]
 
 print(provinces)
-
-"""
-print(headers[1])
-print("HOLY FUCK ###################################################")
-print(headers[1].findChildren("span" , recursive=False)[0].findChildren("a" , recursive=False)[0].get("title"))
-print("HOLY FUCK ###################################################")
-print(header_contents)
-provinces = [elem.get("title") for elem in header_contents]
 """
 
-
-lists = soup.find_all("ul")#, {"id": "h2"})
+lists = soup.find_all("ul")
+lists.pop(0)
 #print(lists)
+content = lists[0]
+#print(content.findChildren("li")[0].findChildren("a" , recursive=False)[0].get("title"))
+
+
+def getArticleTitles(ul_list):
+    content = ul_list.findChildren("li")
+    return [getArticleTitle(article) for article in content]
+
+def getArticleTitle(list_element):
+    return list_element.findChildren("a" , recursive=False)[0].get("title")
+#print(lists[0].findChildren("a" , recursive=False)[0].get("title"))
+
+
+ridings_by_province = [getArticleTitles(list) for list in lists]
+
+
+print(ridings_by_province)
 
 """
 #section = wikipedia.WikipediaPage('Metropolis (1927 film)').section('Plot')
