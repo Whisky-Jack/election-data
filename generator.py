@@ -112,6 +112,19 @@ abolished_year = "yeet"
 terms = ["redistributed", "merged", "abolished"]
 
 # Find paragraph in which a keyword occurs
+def includes_keyword(paragraph):
+    print("Not implemented")
+
+def extract_keyword(paragraph):
+    print("Not implemented")
+
+def extract_successors(paragraph):
+    print("Not implemented")
+
+for paragraph in paragraphs:
+    if (includes_keyword(paragraph)):
+        keyword = extract_keyword(paragraph)
+        successors = extract_successors(paragraph)
 
 # Identify names in that paragraph
 
