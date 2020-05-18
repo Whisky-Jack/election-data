@@ -32,7 +32,7 @@ class RidingObject:
 
 while True:
 # Go through and obtain the riding names for every year
-#for year in years:
+#for year in range(2): #years:
     year = years[0]
     print(year)
     section = wikipedia.WikipediaPage(year)
@@ -96,24 +96,45 @@ while True:
             riding_dict[riding] = RidingObject(riding, province)
     break
 #input()
+"""
 print(len(riding_dict))
 G = nx.Graph()
 
 # Construct nodes for each member of the dict
 G.add_nodes_from(riding_dict.items())
 print(G.number_of_nodes())
+#NOTE: ASSERT THAT THE DATES WORK OUT WHEN ADDING TO GRAPH
+"""
 
 article_title = ridings_by_province[0][0]
 summary = wikipedia.WikipediaPage(article_title).summary
-print(summary)
+
+page = wikipedia.WikipediaPage(article_title)
+html = page.html()
+soup = BeautifulSoup(html, 'html.parser')
+
+paragraph = soup.find_all("p")[0]
+#print(paragraph)
 created_year = "yeet"
 abolished_year = "yeet"
 
+valid_titles = list(riding_dict.keys())
+valid_titles.append("Digby and Annapolis")
+titles = [child.get("title") for child in paragraph.findChildren("a", recursive=False)]
+print(titles)
+titles = [title for title in titles if title in valid_titles]
+#print(article_title)
+print(titles)
+
 terms = ["redistributed", "merged", "abolished"]
 
+"""
 # Find paragraph in which a keyword occurs
 def includes_keyword(paragraph):
-    print("Not implemented")
+    for term in terms:
+        if (term in paragraph):
+            return True
+    return False
 
 def extract_keyword(paragraph):
     print("Not implemented")
@@ -127,7 +148,7 @@ for paragraph in paragraphs:
         successors = extract_successors(paragraph)
 
 # Identify names in that paragraph
-
+"""
 """
 #section = wikipedia.WikipediaPage('Metropolis (1927 film)').section('Plot')
 section = wikipedia.WikipediaPage('Annapolis (electoral district)')
