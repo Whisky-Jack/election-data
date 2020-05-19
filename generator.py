@@ -106,7 +106,7 @@ print(G.number_of_nodes())
 #NOTE: ASSERT THAT THE DATES WORK OUT WHEN ADDING TO GRAPH
 """
 
-article_title = ridings_by_province[0][0]
+article_title = ridings_by_province[0][1]
 summary = wikipedia.WikipediaPage(article_title).summary
 
 page = wikipedia.WikipediaPage(article_title)
@@ -118,6 +118,59 @@ paragraph = soup.find_all("p")[0]
 created_year = "yeet"
 abolished_year = "yeet"
 
+terms = ["redistributed", "merged", "abolished", "divided", "dissolved"]
+
+#print(paragraph.contents)
+
+
+contents = paragraph.contents
+#print(contents)
+sliced_contents = contents
+# find first occurence of keyword in paragraph
+#content_validator = re.compile("\.?[^\.]*(redistributed)[^\.]*")
+content_validator = re.compile("\.?[^\.]*%s[^\.]*" % '|'.join(terms))
+index = -1
+for idx, element in enumerate(contents):
+    if (isinstance(element, str) and content_validator.search(element)):
+        index = idx
+        sliced_contents = contents[index + 1:]
+        #print(sliced_contents)
+
+content_validator = re.compile(".*\..*")
+for idx, element in enumerate(sliced_contents):
+    if (isinstance(element, str) and content_validator.search(element)):
+        index = idx
+        sliced_contents = sliced_contents[:index]
+
+print(sliced_contents)
+
+# Filter children for valid electoral districts
+children = paragraph.findChildren("a", recursive=False)
+
+"""
+valid_titles = list(riding_dict.keys())
+valid_titles.append("Digby and Annapolis")
+titles = [child.get("title") for child in paragraph.findChildren("a", recursive=False)]
+print(titles)
+titles = [title for title in titles if title in valid_titles]
+"""
+
+relevant_children = [child for child in children if child in sliced_contents]
+
+print(relevant_children)
+
+titles = [child.get("title") for child in relevant_children]
+
+print(titles)
+
+
+# find next occurence of period
+# slice array
+# find all children landing within this sliced array
+
+#relevant_section = paragraph.find_all("\.?[^\.]*(redistributed)[^\.]*\.")
+
+"""
 valid_titles = list(riding_dict.keys())
 valid_titles.append("Digby and Annapolis")
 titles = [child.get("title") for child in paragraph.findChildren("a", recursive=False)]
@@ -125,8 +178,8 @@ print(titles)
 titles = [title for title in titles if title in valid_titles]
 #print(article_title)
 print(titles)
+"""
 
-terms = ["redistributed", "merged", "abolished"]
 
 """
 # Find paragraph in which a keyword occurs
