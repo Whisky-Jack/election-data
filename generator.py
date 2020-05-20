@@ -30,10 +30,10 @@ class RidingObject:
         self.change = change
         self.successors = successors
 
-while True:
+#while True:
 # Go through and obtain the riding names for every year
-#for year in range(2): #years:
-    year = years[0]
+for i in range(2): #years:
+    year = years[i]
     print(year)
     section = wikipedia.WikipediaPage(year)
     html = section.html()
@@ -106,62 +106,54 @@ print(G.number_of_nodes())
 #NOTE: ASSERT THAT THE DATES WORK OUT WHEN ADDING TO GRAPH
 """
 
-article_title = ridings_by_province[0][1]
-summary = wikipedia.WikipediaPage(article_title).summary
+article_title = ridings_by_province[0][4]
 
-page = wikipedia.WikipediaPage(article_title)
-html = page.html()
-soup = BeautifulSoup(html, 'html.parser')
+def extract_successors(article_title):
+    summary = wikipedia.WikipediaPage(article_title).summary
 
-paragraph = soup.find_all("p")[0]
-#print(paragraph)
-created_year = "yeet"
-abolished_year = "yeet"
+    page = wikipedia.WikipediaPage(article_title)
+    html = page.html()
+    soup = BeautifulSoup(html, 'html.parser')
 
-terms = ["redistributed", "merged", "abolished", "divided", "dissolved"]
+    all_paragraphs = soup.find_all("p")
 
-#print(paragraph.contents)
+    #TODO: concatenate all contents
+    contents = all_paragraphs[0].contents
+    sliced_contents = contents
+    # find first occurence of keyword in paragraph
+    terms = ["redistributed", "merged", "abolished", "divided", "dissolved"]
+    content_validator = re.compile("\.?[^\.]*%s[^\.]*" % '|'.join(terms))
+    index = -1
+    for paragraph in all_paragraphs:
+        contents = paragraph.contents
+        sliced_contents = contents
+        for idx, element in enumerate(contents):
+            if (isinstance(element, str) and content_validator.search(element)):
+                index = idx
+                sliced_contents = contents[index + 1:]
+                print(sliced_contents)
+        if index > -1:
+            break
 
+    content_validator = re.compile(".*\..*")
+    for idx, element in enumerate(sliced_contents):
+        if (isinstance(element, str) and content_validator.search(element)):
+            index = idx
+            sliced_contents = sliced_contents[:index]
 
-contents = paragraph.contents
-#print(contents)
-sliced_contents = contents
-# find first occurence of keyword in paragraph
-#content_validator = re.compile("\.?[^\.]*(redistributed)[^\.]*")
-content_validator = re.compile("\.?[^\.]*%s[^\.]*" % '|'.join(terms))
-index = -1
-for idx, element in enumerate(contents):
-    if (isinstance(element, str) and content_validator.search(element)):
-        index = idx
-        sliced_contents = contents[index + 1:]
-        #print(sliced_contents)
+    #print(sliced_contents)
+    print("############################################################")
+    print("Sliced contents: ", sliced_contents)
+    # Filter children for valid electoral districts
+    children = paragraph.findChildren("a", recursive=False)
+    relevant_children = [child for child in children if child in sliced_contents]
 
-content_validator = re.compile(".*\..*")
-for idx, element in enumerate(sliced_contents):
-    if (isinstance(element, str) and content_validator.search(element)):
-        index = idx
-        sliced_contents = sliced_contents[:index]
+    #print(relevant_children)
+    valid_titles = list(riding_dict.keys())
+    titles = [child.get("title") for child in relevant_children]
+    titles = [title for title in titles if title in valid_titles]
 
-print(sliced_contents)
-
-# Filter children for valid electoral districts
-children = paragraph.findChildren("a", recursive=False)
-
-"""
-valid_titles = list(riding_dict.keys())
-valid_titles.append("Digby and Annapolis")
-titles = [child.get("title") for child in paragraph.findChildren("a", recursive=False)]
-print(titles)
-titles = [title for title in titles if title in valid_titles]
-"""
-
-relevant_children = [child for child in children if child in sliced_contents]
-
-print(relevant_children)
-
-titles = [child.get("title") for child in relevant_children]
-
-print(titles)
+    print(titles)
 
 
 # find next occurence of period
