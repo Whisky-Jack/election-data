@@ -3,6 +3,7 @@ import networkx as nx
 import urllib.request
 from bs4 import BeautifulSoup
 import re
+import csv
 
 contents = urllib.request.urlopen("https://en.wikipedia.org/wiki/Historical_federal_electoral_districts_of_Canada").read()
 
@@ -18,64 +19,27 @@ years = [s for s in years if regex.match(s)]
 riding_dict = {}
 
 class RidingObject:
-    def __init__(self, name, province):
+    def __init__(self, name):
         self.name = name
-        self.province = province
+        self.predecessors = []
 
     def add_dates(self, start, end):
         self.start = start
         self.end = end
 
-    def add_data(self, change, successors):
-        self.change = change
+    def add_successors(self, successors):
         self.successors = successors
+    
+    def add_predecessor(self, predecessor_name):
+        self.predecessors.append(predecessor_name)
 
-#while True:
 # Go through and obtain the riding names for every year
-for i in range(2): #years:
+for i in range(4): #range(len(years)):
     year = years[i]
-    print(year)
     section = wikipedia.WikipediaPage(year)
     html = section.html()
 
     soup = BeautifulSoup(html, 'html.parser')
-
-    # GET PROVINCES
-    headers = soup.find_all(re.compile('^h[1-6]$'))
-    #headers.pop(0)   #TODO: This is a hacky fix, should instead filter based on class or something
-
-    provinces = ["Ontario", "Quebec", "British Columbia", "Manitoba", "Yukon", "Nova Scotia", "New Brunswick", "Newfoundland and Labrador", "Alberta", "Northwest Territories", "Nunavut", "Prince Edward Island", "Saskatchewan"]
-    def getProvinceName(header):
-        #print(header)
-        header_span = header.findChildren("span" , recursive=False)[0]
-        span_children = header_span.findChildren("a" , recursive=False)
-        if (len(span_children) != 0):
-            key = span_children[0].get("title") if len(span_children) == 1 else span_children[1].get("title")
-            if (key not in provinces):
-                print("")
-            return key
-        else:
-            print("WARNING: missing key")
-            content_string = header_span.get_text()
-            data = re.findall("^.+?(?=\s\-\s)", content_string)
-            if (len(data) == 0):
-                raise Exception("Wrong kind of key")
-            missing_key = data[0]
-            print("Found ", missing_key)
-            if (missing_key not in provinces):
-                raise Exception("Wrong kind of key")
-            return missing_key
-
-    provinces = []
-    for header in headers:
-        try:
-            name = getProvinceName(header)
-            provinces.append(name)
-        except:
-            print("Not a valid province")
-    #provinces = [getProvinceName(header) for header in headers]
-
-    print(provinces)
 
     # GET ELECTORAL DISTRICT NAMES
     lists = soup.find_all("ul")
@@ -89,25 +53,25 @@ for i in range(2): #years:
     def getArticleTitle(list_element):
         return list_element.findChildren("a" , recursive=False)[0].get("title")
 
-    ridings_by_province = [getArticleTitles(list) for list in lists]
+    ridings_by_province = [getArticleTitles(list_element) for list_element in lists]
 
-    for index, province in enumerate(provinces):
-        for riding in ridings_by_province[index]:
-            riding_dict[riding] = RidingObject(riding, province)
-    break
-#input()
-"""
-print(len(riding_dict))
-G = nx.Graph()
+    num_districts = 0
+    for district_list in ridings_by_province:
+        for riding in district_list:
+            riding_dict[riding] = RidingObject(riding)
+            num_districts += 1
+    
+    print("Year: ", year)
+    print("Number of districts: ", num_districts)
 
 # Construct nodes for each member of the dict
+G = nx.Graph()
 G.add_nodes_from(riding_dict.items())
-print(G.number_of_nodes())
-#NOTE: ASSERT THAT THE DATES WORK OUT WHEN ADDING TO GRAPH
-"""
 
-article_title = ridings_by_province[0][4]
+print("Number of entries in dict: ", len(riding_dict))
+print("Number of nodes in graph: ", G.number_of_nodes())
 
+# EXTRACT SUCCESSORS
 def extract_successors(article_title):
     summary = wikipedia.WikipediaPage(article_title).summary
 
@@ -121,7 +85,7 @@ def extract_successors(article_title):
     contents = all_paragraphs[0].contents
     sliced_contents = contents
     # find first occurence of keyword in paragraph
-    terms = ["redistributed", "merged", "abolished", "divided", "dissolved"]
+    terms = ["redistributed", "merged", "abolished", "dissolved", "amalgamated", "re-distributed"]
     content_validator = re.compile("\.?[^\.]*%s[^\.]*" % '|'.join(terms))
     index = -1
     for paragraph in all_paragraphs:
@@ -131,7 +95,7 @@ def extract_successors(article_title):
             if (isinstance(element, str) and content_validator.search(element)):
                 index = idx
                 sliced_contents = contents[index + 1:]
-                print(sliced_contents)
+                #print(sliced_contents)
         if index > -1:
             break
 
@@ -141,9 +105,6 @@ def extract_successors(article_title):
             index = idx
             sliced_contents = sliced_contents[:index]
 
-    #print(sliced_contents)
-    print("############################################################")
-    print("Sliced contents: ", sliced_contents)
     # Filter children for valid electoral districts
     children = paragraph.findChildren("a", recursive=False)
     relevant_children = [child for child in children if child in sliced_contents]
@@ -151,54 +112,81 @@ def extract_successors(article_title):
     #print(relevant_children)
     valid_titles = list(riding_dict.keys())
     titles = [child.get("title") for child in relevant_children]
-    titles = [title for title in titles if title in valid_titles]
+    #titles = [title for title in titles if title in valid_titles]
 
-    print(titles)
-
-
-# find next occurence of period
-# slice array
-# find all children landing within this sliced array
-
-#relevant_section = paragraph.find_all("\.?[^\.]*(redistributed)[^\.]*\.")
+    print("################")
+    print("Article title: ", article_title)
+    print("Found successors: ", titles)
+    return titles
 
 """
-valid_titles = list(riding_dict.keys())
-valid_titles.append("Digby and Annapolis")
-titles = [child.get("title") for child in paragraph.findChildren("a", recursive=False)]
-print(titles)
-titles = [title for title in titles if title in valid_titles]
-#print(article_title)
-print(titles)
+#article_title = ridings_by_province[0][4]
+with open('eggs.csv', 'w', newline='') as csvfile:
+    spamwriter = csv.writer(csvfile, delimiter=' ',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    spamwriter.writerow(['Spam'] * 5 + ['Baked Beans'])
+    spamwriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
 """
 
+total = 0
+successful = 0
+electoral_districts = list(riding_dict.keys())
 
-"""
-# Find paragraph in which a keyword occurs
-def includes_keyword(paragraph):
-    for term in terms:
-        if (term in paragraph):
-            return True
-    return False
+# Process districts and extract successors
+with open('electoral_district_successors.csv', 'w', newline='') as successor_file:
+    successor_writer = csv.writer(successor_file)
+    
+    for i in range(len(electoral_districts)):
+        article_title = electoral_districts[i]
+        riding_object = riding_dict.get(article_title)
 
-def extract_keyword(paragraph):
-    print("Not implemented")
+        successors = extract_successors(article_title)
 
-def extract_successors(paragraph):
-    print("Not implemented")
+        # Add data to object
+        riding_object.add_successors(successors)
 
-for paragraph in paragraphs:
-    if (includes_keyword(paragraph)):
-        keyword = extract_keyword(paragraph)
-        successors = extract_successors(paragraph)
+        #NOTE: ASSERT THAT THE DATES WORK OUT WHEN ADDING TO GRAPH
 
-# Identify names in that paragraph
-"""
-"""
-#section = wikipedia.WikipediaPage('Metropolis (1927 film)').section('Plot')
-section = wikipedia.WikipediaPage('Annapolis (electoral district)')
-#section = section.replace('\n','').replace("\'","")
-print(section)
-print(section.summary)
-print(section.links)
-"""
+        # Add edges in graph
+        for successor in successors:
+            successor_object = riding_dict.get(successor)
+            if (not successor_object is None):
+                successor_object.add_predecessor(article_title)
+                G.add_edge(riding_object, successor_object)
+        
+        if (len(successors) > 0):
+            successful += 1
+        
+        if (len(successors) == 0):
+            successors = ["None found"]
+        
+        successor_contents = [article_title] + successors
+        successor_writer.writerow(successor_contents)
+
+        total += 1
+
+print("Percentage of ridings with at least one identified successor: ", 100*successful/total, "%")
+
+total = 0
+successful = 0
+
+with open('electoral_district_predecessors.csv', 'w', newline='') as predecessor_file:
+    predecessor_writer = csv.writer(predecessor_file)
+    
+    for i in range(len(electoral_districts)):
+        article_title = electoral_districts[i]
+        riding_object = riding_dict.get(article_title)
+        predecessors = riding_object.predecessors
+
+        if (len(predecessors) > 0):
+            successful += 1
+        
+        if (len(predecessors) == 0):
+            predecessors = ["None found"]
+        
+        predecessor_contents = [article_title] + predecessors
+        predecessor_writer.writerow(predecessor_contents)
+
+        total += 1
+
+print("Percentage of ridings with at least one identified predecessor: ", 100*successful/total, "%")
