@@ -34,7 +34,7 @@ class RidingObject:
         self.predecessors.append(predecessor_name)
 
 # Go through and obtain the riding names for every year
-for i in range(4): #range(len(years)):
+for i in range(len(years)):#range(4): #range(len(years)):
     year = years[i]
     section = wikipedia.WikipediaPage(year)
     html = section.html()
@@ -63,6 +63,7 @@ for i in range(4): #range(len(years)):
     
     print("Year: ", year)
     print("Number of districts: ", num_districts)
+    break
 
 # Construct nodes for each member of the dict
 G = nx.Graph()
@@ -119,14 +120,18 @@ def extract_successors(article_title):
     print("Found successors: ", titles)
     return titles
 
-"""
-#article_title = ridings_by_province[0][4]
-with open('eggs.csv', 'w', newline='') as csvfile:
-    spamwriter = csv.writer(csvfile, delimiter=' ',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-    spamwriter.writerow(['Spam'] * 5 + ['Baked Beans'])
-    spamwriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
-"""
+def extractDates(article_title):
+    summary = wikipedia.WikipediaPage(article_title).summary
+
+    page = wikipedia.WikipediaPage(article_title)
+
+    relevant_section = page.sections
+    print(relevant_section)
+
+    html = page.html()
+    soup = BeautifulSoup(html, 'html.parser')
+
+    all_tables = soup.find_all("p")
 
 total = 0
 successful = 0
@@ -140,12 +145,15 @@ with open('electoral_district_successors.csv', 'w', newline='') as successor_fil
         article_title = electoral_districts[i]
         riding_object = riding_dict.get(article_title)
 
-        successors = extract_successors(article_title)
+        #successors = extract_successors(article_title)
 
         # Add data to object
         riding_object.add_successors(successors)
 
         #NOTE: ASSERT THAT THE DATES WORK OUT WHEN ADDING TO GRAPH
+        # Add dates
+        extractDates(article_title)
+
 
         # Add edges in graph
         for successor in successors:
@@ -164,6 +172,7 @@ with open('electoral_district_successors.csv', 'w', newline='') as successor_fil
         successor_writer.writerow(successor_contents)
 
         total += 1
+        break
 
 print("Percentage of ridings with at least one identified successor: ", 100*successful/total, "%")
 
@@ -188,5 +197,6 @@ with open('electoral_district_predecessors.csv', 'w', newline='') as predecessor
         predecessor_writer.writerow(predecessor_contents)
 
         total += 1
+        break
 
 print("Percentage of ridings with at least one identified predecessor: ", 100*successful/total, "%")
