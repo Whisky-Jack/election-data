@@ -21,17 +21,19 @@ riding_dict = {}
 class RidingObject:
     def __init__(self, name):
         self.name = name
-        self.predecessors = []
+        self.eras = []
 
+class Era:
     def add_dates(self, start, end):
         self.start = start
         self.end = end
 
+    def add_predecessor(self, predecessor_name):
+        self.predecessors.append(predecessor_name)
+
     def add_successors(self, successors):
         self.successors = successors
     
-    def add_predecessor(self, predecessor_name):
-        self.predecessors.append(predecessor_name)
 
 # Go through and obtain the riding names for every year
 for i in range(len(years)):#range(4): #range(len(years)):
@@ -73,13 +75,35 @@ print("Number of entries in dict: ", len(riding_dict))
 print("Number of nodes in graph: ", G.number_of_nodes())
 
 # EXTRACT SUCCESSORS
-def extract_successors(article_title):
-    summary = wikipedia.WikipediaPage(article_title).summary
+def find_table(soup):
+    # extract relevant table
+    for header in soup.find_all('h2'):
+        if (header.findChildren("span", id="Members_of_Parliament")):
+            print("FOUND")
+            table = header.findNext('table')
+    existence_sections = table.find_all("td", align="center")
 
-    page = wikipedia.WikipediaPage(article_title)
-    html = page.html()
-    soup = BeautifulSoup(html, 'html.parser')
+    # extract information on predecessors
+    first = existence_sections[0]
+    origin = first.find_all("b")[0]
+    contents = origin.contents
+    #TODO: may want to verify here that created word appears here
+    children = origin.findChildren("a", recursive=False)
+    predecessor_titles = [child.get("title") for child in children]
 
+    print(predecessor_titles)
+
+    # an ERA consists of 
+
+    following_dates = first.parent.findNext("tr").findChildren("td", recursive=False)
+    #print(following_dates)
+    #print(table)
+
+    terms = ["redistributed", "merged", "abolished", "dissolved", "amalgamated", "re-distributed"]
+
+    return False
+
+    """
     all_paragraphs = soup.find_all("p")
 
     #TODO: concatenate all contents
@@ -119,19 +143,7 @@ def extract_successors(article_title):
     print("Article title: ", article_title)
     print("Found successors: ", titles)
     return titles
-
-def extractDates(article_title):
-    summary = wikipedia.WikipediaPage(article_title).summary
-
-    page = wikipedia.WikipediaPage(article_title)
-
-    relevant_section = page.sections
-    print(relevant_section)
-
-    html = page.html()
-    soup = BeautifulSoup(html, 'html.parser')
-
-    all_tables = soup.find_all("p")
+    """
 
 total = 0
 successful = 0
@@ -142,12 +154,27 @@ with open('electoral_district_successors.csv', 'w', newline='') as successor_fil
     successor_writer = csv.writer(successor_file)
     
     for i in range(len(electoral_districts)):
-        article_title = electoral_districts[i]
+        #article_title = electoral_districts[i]
+        article_title = "Digby and Annapolis"
         riding_object = riding_dict.get(article_title)
+
+        # Extract dates and successors
+        summary = wikipedia.WikipediaPage(article_title).summary
+
+        page = wikipedia.WikipediaPage(article_title)
+        html = page.html()
+        soup = BeautifulSoup(html, 'html.parser')
+
+        table = find_table(soup)
+
+        print(table)
+
+        
 
         #successors = extract_successors(article_title)
 
         # Add data to object
+        """
         riding_object.add_successors(successors)
 
         #NOTE: ASSERT THAT THE DATES WORK OUT WHEN ADDING TO GRAPH
@@ -172,8 +199,9 @@ with open('electoral_district_successors.csv', 'w', newline='') as successor_fil
         successor_writer.writerow(successor_contents)
 
         total += 1
+        """
         break
-
+"""
 print("Percentage of ridings with at least one identified successor: ", 100*successful/total, "%")
 
 total = 0
@@ -200,3 +228,4 @@ with open('electoral_district_predecessors.csv', 'w', newline='') as predecessor
         break
 
 print("Percentage of ridings with at least one identified predecessor: ", 100*successful/total, "%")
+"""
