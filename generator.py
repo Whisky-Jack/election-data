@@ -22,14 +22,21 @@ class RidingObject:
     def __init__(self, name):
         self.name = name
         self.eras = []
+        self.elections = []
 
 class Era:
+    def __init__(self, start, end, predecessors, successors):
+        self.start = start
+        self.end = end
+        self.predecessors = predecessors
+        self.successors = successors
+
     def add_dates(self, start, end):
         self.start = start
         self.end = end
 
-    def add_predecessor(self, predecessor_name):
-        self.predecessors.append(predecessor_name)
+    def add_predecessors (self, predecessors):
+        self.predecessors = predecessors
 
     def add_successors(self, successors):
         self.successors = successors
@@ -74,28 +81,127 @@ G.add_nodes_from(riding_dict.items())
 print("Number of entries in dict: ", len(riding_dict))
 print("Number of nodes in graph: ", G.number_of_nodes())
 
+# Want to create a series of eras:
+# Want to extract predecessors, successors and dates for each era
+# Need to handle edge cases
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # EXTRACT SUCCESSORS
+
+# TODO: handle case where predecessors are not explictly indicated (assume they are the previous successors)
 def find_table(soup):
     # extract relevant table
     for header in soup.find_all('h2'):
         if (header.findChildren("span", id="Members_of_Parliament")):
             print("FOUND")
             table = header.findNext('table')
-    existence_sections = table.find_all("td", align="center")
+    table_tds = table.find_all("td", align="center")
+    parents = [table_td.parent for table_td in table_tds]
+    table_trs = table.find_all("tr")
 
     # extract information on predecessors
-    first = existence_sections[0]
+    first = table_tds[0]
     origin = first.find_all("b")[0]
     contents = origin.contents
     #TODO: may want to verify here that created word appears here
     children = origin.findChildren("a", recursive=False)
     predecessor_titles = [child.get("title") for child in children]
 
-    print(predecessor_titles)
+    #print(predecessor_titles)
 
-    # an ERA consists of 
+    # extract information on successors
+    last = table_tds[-1]
+    origin = first.find_all("b")[0]
+    contents = origin.contents
+    #TODO: may want to verify here that created word appears here
+    children = origin.findChildren("a", recursive=False)
+    successor_titles = [child.get("title") for child in children]
+    #print(successor_titles)
 
-    following_dates = first.parent.findNext("tr").findChildren("td", recursive=False)
+    # an ERA consists of a start date, and end date a set of predecessors and a set of successors
+    dates_regex = re.compile("[0-9]{4}(\-|\–)[0-9]{4}") # re.compile(".*")#
+    first_date_regex = re.compile("[0-9]{4}")
+    #print(existence_sections[2])
+    eras = []
+    for existence_section in table_tds:
+        #print("EXISTENCE: ", existence_section)
+        # find start date
+        tr = existence_section.findNext("tr")
+        
+        # if there is no next section, exit loop
+        if tr not in table_trs:
+            break
+
+        # handle case where riding is recreated
+        if existence_section.parent.next_sibling.next_sibling not in parents:
+            tds = tr.findChildren("td", recursive=False)
+            td_text = [td.get_text() for td in tds]
+            next_dates = list(filter(dates_regex.search, td_text))
+            start_date = first_date_regex.findall(next_dates[0])[0]
+
+            # find predecessors
+            origin = existence_section.find_all("b")[0]
+            contents = origin.contents
+            #TODO: may want to verify here that created word appears here
+            children = origin.findChildren("a", recursive=False)
+            predecessor_titles = [child.get("title") for child in children]
+
+            # find sibling section
+            partner = existence_section.findNext("td", align="center")
+            if partner is None or partner not in table_tds:
+                last_dates = table_trs[-1]
+
+                td_text = [td.get_text() for td in tds]
+                next_dates = list(filter(dates_regex.search, td_text))
+                end_date = first_date_regex.findall(next_dates[0])[-1]
+                successor_titles = ["None found"]
+            else:
+                tds = partner.parent.findPrevious("tr").findChildren("td", recursive=False)
+                td_text = [td.get_text() for td in tds]
+                next_dates = list(filter(dates_regex.search, td_text))
+                end_date = first_date_regex.findall(next_dates[0])[-1]
+
+                # find successors
+                origin = partner.find_all("b")[0]
+                contents = origin.contents
+                #TODO: may want to verify here that created word appears here
+                children = origin.findChildren("a", recursive=False)
+                successor_titles = [child.get("title") for child in children]
+            
+            # create era
+            print("Start date: ", start_date)
+            print("End date: ", end_date)
+            print("Predecessors :", predecessor_titles)
+            print("Successors", successor_titles)
+            eras.append(Era(start_date, end_date, predecessor_titles, successor_titles))
+        else:
+            print("Riding re-created")
+
     #print(following_dates)
     #print(table)
 
@@ -154,8 +260,11 @@ with open('electoral_district_successors.csv', 'w', newline='') as successor_fil
     successor_writer = csv.writer(successor_file)
     
     for i in range(len(electoral_districts)):
-        #article_title = electoral_districts[i]
-        article_title = "Digby and Annapolis"
+        article_title = electoral_districts[i]
+        #article_title = "Digby and Annapolis"Shelburne—Yarmouth—Clare
+        article_title = "Shelburne—Yarmouth—Clare"
+        article_title = "New Westminster—Coquitlam"
+        article_title = "New Westminster—Burnaby"
         riding_object = riding_dict.get(article_title)
 
         # Extract dates and successors
