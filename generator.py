@@ -13,6 +13,8 @@ years = section.links
 regex = re.compile("(List of Canadian electoral districts)")
 
 years = [s for s in years if regex.match(s)]
+#years = years[9:]
+years = years[-5:]
 
 
 # Construct a dict for the riding names for the entire set of ridings
@@ -72,7 +74,7 @@ for i in range(len(years)):#range(4): #range(len(years)):
     
     print("Year: ", year)
     print("Number of districts: ", num_districts)
-    break
+    #break
 
 # Construct nodes for each member of the dict
 G = nx.Graph()
@@ -85,66 +87,50 @@ print("Number of nodes in graph: ", G.number_of_nodes())
 # Want to extract predecessors, successors and dates for each era
 # Need to handle edge cases
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # EXTRACT SUCCESSORS
-
 # TODO: handle case where predecessors are not explictly indicated (assume they are the previous successors)
-def find_table(soup):
+def scrape_table_information(soup):
     # extract relevant table
+    table = None
     for header in soup.find_all('h2'):
-        if (header.findChildren("span", id="Members_of_Parliament")):
-            print("FOUND")
+        #valid_ids = ["Members_of_Parliament", "Members of the Legislative Assembly"]
+        """
+        print("#################################")
+        print(header)
+        print("#######")
+        print(header.findChildren("span", id="Members_of_the_Legislative_Assembly"))
+        """
+        if (header.findChildren("span", id="Members_of_Parliament")):# or header.findChildren("span", id="Members_of_the_Legislative_Assembly_.2F_National_Assembly")):
             table = header.findNext('table')
+    if table is None:
+        for header in soup.find_all('h2'):
+        #valid_ids = ["Members_of_Parliament", "Members of the Legislative Assembly"]
+        #print("#################################")
+        #print(header)
+        #print(header.findChildren("span", id="Members_of_the_Legislative_Assembly"))
+            if header.findChildren("span", id="History"):# or header.findChildren("span", id="Members_of_the_Legislative_Assembly")):
+                table = header.findNext('table')
+    if table is None:
+        return False
+
     table_tds = table.find_all("td", align="center")
+
+    def check_inclusion(table_td):
+        if (table_td.parent.has_attr('bgcolor') and table_td.has_attr('bgcolor')):
+            return table_td.parent['bgcolor'] == '#F0F0F0' or table_td['bgcolor'] == '#F0F0F0'
+        elif table_td.parent.has_attr('bgcolor'):
+            return table_td.parent['bgcolor'] == '#F0F0F0'
+        elif table_td.has_attr('bgcolor'):
+            return table_td['bgcolor'] == '#F0F0F0'
+        else:
+            return False
+
+    table_tds = [table_td for table_td in table_tds if check_inclusion(table_td)]
     parents = [table_td.parent for table_td in table_tds]
     table_trs = table.find_all("tr")
 
-    # extract information on predecessors
-    first = table_tds[0]
-    origin = first.find_all("b")[0]
-    contents = origin.contents
-    #TODO: may want to verify here that created word appears here
-    children = origin.findChildren("a", recursive=False)
-    predecessor_titles = [child.get("title") for child in children]
-
-    #print(predecessor_titles)
-
-    # extract information on successors
-    last = table_tds[-1]
-    origin = first.find_all("b")[0]
-    contents = origin.contents
-    #TODO: may want to verify here that created word appears here
-    children = origin.findChildren("a", recursive=False)
-    successor_titles = [child.get("title") for child in children]
-    #print(successor_titles)
-
     # an ERA consists of a start date, and end date a set of predecessors and a set of successors
-    dates_regex = re.compile("[0-9]{4}(\-|\–)[0-9]{4}") # re.compile(".*")#
+    dates_regex = re.compile("[0-9]{4}\s?(\-|\–)\s?[0-9]{4}") # re.compile(".*")#
     first_date_regex = re.compile("[0-9]{4}")
     #print(existence_sections[2])
     eras = []
@@ -192,6 +178,10 @@ def find_table(soup):
                 #TODO: may want to verify here that created word appears here
                 children = origin.findChildren("a", recursive=False)
                 successor_titles = [child.get("title") for child in children]
+
+                # handle case of renaming
+                if (len(successor_titles) == 0):
+                    print("Well shit")
             
             # create era
             print("Start date: ", start_date)
@@ -205,54 +195,68 @@ def find_table(soup):
     #print(following_dates)
     #print(table)
 
-    terms = ["redistributed", "merged", "abolished", "dissolved", "amalgamated", "re-distributed"]
+    #terms = ["redistributed", "merged", "abolished", "dissolved", "amalgamated", "re-distributed"]
 
-    return False
+    return eras
 
-    """
+def scrape_non_table_information(soup):
     all_paragraphs = soup.find_all("p")
-
     #TODO: concatenate all contents
     contents = all_paragraphs[0].contents
     sliced_contents = contents
-    # find first occurence of keyword in paragraph
-    terms = ["redistributed", "merged", "abolished", "dissolved", "amalgamated", "re-distributed"]
-    content_validator = re.compile("\.?[^\.]*%s[^\.]*" % '|'.join(terms))
-    index = -1
-    for paragraph in all_paragraphs:
-        contents = paragraph.contents
-        sliced_contents = contents
-        for idx, element in enumerate(contents):
+
+    def extract_titles(keywords):
+        content_validator = re.compile("\.?[^\.]*%s[^\.]*" % '|'.join(predecessor_terms))
+        index = -1
+        for paragraph in all_paragraphs:
+            contents = paragraph.contents
+            sliced_contents = contents
+            for idx, element in enumerate(contents):
+                if (isinstance(element, str) and content_validator.search(element)):
+                    index = idx
+                    sliced_contents = contents[index + 1:]
+                    #print(sliced_contents)
+            if index > -1:
+                break
+        content_validator = re.compile(".*\..*")
+        for idx, element in enumerate(sliced_contents):
             if (isinstance(element, str) and content_validator.search(element)):
                 index = idx
-                sliced_contents = contents[index + 1:]
-                #print(sliced_contents)
-        if index > -1:
-            break
+                sliced_contents = sliced_contents[:index]
+        # Filter children for valid electoral districts
+        children = paragraph.findChildren("a", recursive=False)
+        relevant_children = [child for child in children if child in sliced_contents]
+        #print(relevant_children)
+        valid_titles = list(riding_dict.keys())
+        titles = [child.get("title") for child in relevant_children]
+        return titles
+    
+    # find predecessors, if any
+    predecessor_terms = ["created"]
+    predecessor_titles = extract_titles(predecessor_terms)
+    
+    # find successors, if any
 
-    content_validator = re.compile(".*\..*")
-    for idx, element in enumerate(sliced_contents):
-        if (isinstance(element, str) and content_validator.search(element)):
-            index = idx
-            sliced_contents = sliced_contents[:index]
+    # find first occurence of keyword in paragraph
+    successor_terms = ["redistributed", "merged", "abolished", "dissolved", "amalgamated", "re-distributed"]
+    successor_titles = extract_titles(predecessor_terms)
 
-    # Filter children for valid electoral districts
-    children = paragraph.findChildren("a", recursive=False)
-    relevant_children = [child for child in children if child in sliced_contents]
+    # find dates of existence
+    start_date = "Not implemented"
+    end_date = "Not implemented"
 
-    #print(relevant_children)
-    valid_titles = list(riding_dict.keys())
-    titles = [child.get("title") for child in relevant_children]
-    #titles = [title for title in titles if title in valid_titles]
+    # construct simple era
+    eras = [Era(start_date, end_date, predecessor_titles, successor_titles)]
 
     print("################")
     print("Article title: ", article_title)
     print("Found successors: ", titles)
     return titles
-    """
+
 
 total = 0
-successful = 0
+approach_1 = 0
+approach_2 = 0
 electoral_districts = list(riding_dict.keys())
 
 # Process districts and extract successors
@@ -262,22 +266,39 @@ with open('electoral_district_successors.csv', 'w', newline='') as successor_fil
     for i in range(len(electoral_districts)):
         article_title = electoral_districts[i]
         #article_title = "Digby and Annapolis"Shelburne—Yarmouth—Clare
-        article_title = "Shelburne—Yarmouth—Clare"
-        article_title = "New Westminster—Coquitlam"
-        article_title = "New Westminster—Burnaby"
+        #article_title = "Shelburne—Yarmouth—Clare"
+        #article_title = "New Westminster—Coquitlam"
+        #article_title = "New Westminster—Burnaby"
+
+        print("#########################################################")
+        print(article_title, " with index ", i)
+
+       # if (i != 2 and i != 7):
         riding_object = riding_dict.get(article_title)
 
         # Extract dates and successors
-        summary = wikipedia.WikipediaPage(article_title).summary
+        bad_names = ["Brant North", "Brant South"]
+        if (article_title not in bad_names):
+            summary = wikipedia.WikipediaPage(article_title).summary
 
-        page = wikipedia.WikipediaPage(article_title)
-        html = page.html()
-        soup = BeautifulSoup(html, 'html.parser')
+            page = wikipedia.WikipediaPage(article_title)
+            html = page.html()
+            soup = BeautifulSoup(html, 'html.parser')
 
-        table = find_table(soup)
+            eras = scrape_table_information(soup)
 
-        print(table)
-
+            if (eras):
+                riding_object.eras = eras
+                riding_object.approach = "Table approach"
+                approach_1 += 1
+            """
+            else:
+                eras = scrape_non_table_information(article_title)
+                riding_object.approach = "Summary approach"
+                approach_2 += 1
+            """
+        total += 1
+        print("Running percentage: ", 100*approach_1/total)
         
 
         #successors = extract_successors(article_title)
@@ -309,7 +330,7 @@ with open('electoral_district_successors.csv', 'w', newline='') as successor_fil
 
         total += 1
         """
-        break
+        #break
 """
 print("Percentage of ridings with at least one identified successor: ", 100*successful/total, "%")
 
